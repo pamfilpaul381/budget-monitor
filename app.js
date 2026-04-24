@@ -93,18 +93,9 @@ function renderMonth(monthIdx, active) {
     const val = document.createElement("div");
     val.className = "bar-value";
 
-    const input = document.createElement("input");
-    input.type = "number";
-    input.min = "0";
-    input.step = "1";
-    input.className = "bar-input";
-    input.value = getSpent(String(monthIdx), c.key);
-    input.disabled = !active;
-    input.addEventListener("input", () => {
-      const v = Math.max(0, Number(input.value) || 0);
-      setSpent(String(monthIdx), c.key, v);
-      applyAll();
-    });
+    const input = document.createElement("span");
+    input.className = "bar-input readonly";
+    input.textContent = getSpent(String(monthIdx), c.key);
 
     const cap_ = document.createElement("span");
     cap_.className = "bar-cap";
@@ -133,7 +124,7 @@ function refreshMonth(row) {
     updateBar(r.bar, spent, r.cap);
     r.val.classList.toggle("over", spent > r.cap);
     r.input.classList.toggle("over", spent > r.cap);
-    if (document.activeElement !== r.input) r.input.value = spent;
+    r.input.textContent = spent;
     total += spent;
   }
   row._totalEl.textContent = fmt(total);
@@ -186,23 +177,6 @@ function applyAll() {
   refreshYearTotals(ACTIVE_MONTHS);
 }
 
-function buildExportJson() {
-  const out = {
-    year: DATA.year,
-    employmentStartMonth: DATA.employmentStartMonth,
-    currentMonth: DATA.currentMonth,
-    limits: DATA.limits,
-    spending: {},
-  };
-  for (let m = 1; m <= 12; m++) {
-    out.spending[m] = {
-      transport: getSpent(String(m), "transport"),
-      benefits:  getSpent(String(m), "benefits"),
-    };
-  }
-  return JSON.stringify(out, null, 2);
-}
-
 async function init() {
   const res = await fetch("./data.json", { cache: "no-store" });
   DATA = await res.json();
@@ -222,26 +196,42 @@ async function init() {
     ROWS.push(row);
   }
 
-  document.getElementById("exportBtn").addEventListener("click", () => {
-    const text = buildExportJson();
-    document.getElementById("exportText").value = text;
-    document.getElementById("exportDialog").showModal();
+  const addDialog = document.getElementById("addDialog");
+  const addMonthSel = document.getElementById("addMonth");
+  const addCatSel = document.getElementById("addCategory");
+  const addAmount = document.getElementById("addAmount");
+  const addMode = document.getElementById("addMode");
+  const addForm = document.getElementById("addForm");
+
+  addMonthSel.innerHTML = "";
+  for (const m of ACTIVE_MONTHS) {
+    const opt = document.createElement("option");
+    opt.value = m;
+    opt.textContent = MONTH_NAMES[Number(m) - 1];
+    addMonthSel.appendChild(opt);
+  }
+  const cur = String(DATA.currentMonth ?? (new Date().getMonth() + 1));
+  if (ACTIVE_MONTHS.includes(cur)) addMonthSel.value = cur;
+
+  document.getElementById("addBtn").addEventListener("click", () => {
+    addAmount.value = "";
+    addMode.checked = true;
+    addDialog.showModal();
+    setTimeout(() => addAmount.focus(), 0);
   });
-  document.getElementById("closeBtn").addEventListener("click", () => {
-    document.getElementById("exportDialog").close();
+  document.getElementById("addCancelBtn").addEventListener("click", () => {
+    addDialog.close();
   });
-  document.getElementById("copyBtn").addEventListener("click", async () => {
-    const ta = document.getElementById("exportText");
-    try { await navigator.clipboard.writeText(ta.value); }
-    catch { ta.select(); document.execCommand("copy"); }
-  });
-  document.getElementById("resetBtn").addEventListener("click", () => {
-    if (!confirm("Discard local edits and reload values from data.json?")) return;
-    localStorage.removeItem(STORAGE_KEY);
-    for (const row of ROWS) {
-      for (const r of row._refs) r.input.value = getSpent(row._month, r.cat);
-    }
+  addForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const amt = Math.max(0, Number(addAmount.value) || 0);
+    const month = addMonthSel.value;
+    const cat = addCatSel.value;
+    const current = getSpent(month, cat);
+    const next = addMode.checked ? current + amt : amt;
+    setSpent(month, cat, next);
     applyAll();
+    addDialog.close();
   });
 
   applyAll();

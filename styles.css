@@ -186,6 +186,31 @@ dialog textarea {
 }
 .dialog-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
 
+.bar-input.readonly {
+  display: inline-block;
+  min-width: 40px;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  background: transparent;
+}
+
+#addForm { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.field input[type="number"], .field select {
+  background: #0b0c10;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 14px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.field input[type="number"]:focus, .field select:focus { outline: none; border-color: var(--ok); }
+.field.checkbox { flex-direction: row; align-items: center; gap: 8px; text-transform: none; letter-spacing: 0; font-size: 13px; }
+.field.checkbox input { width: auto; }
+
 .totals-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
