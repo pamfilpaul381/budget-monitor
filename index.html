@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Budget Monitor</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<main>
+  <header class="page-header">
+    <h1>Budget Monitor</h1>
+    <span id="yearLabel" class="muted"></span>
+  </header>
+
+  <section class="status-grid">
+    <article class="status-card" id="statusTransport">
+      <h2>Transport</h2>
+      <p class="status-line" data-role="line">—</p>
+      <p class="sub muted" data-role="sub"></p>
+    </article>
+    <article class="status-card" id="statusBenefits">
+      <h2>Benefits</h2>
+      <p class="status-line" data-role="line">—</p>
+      <p class="sub muted" data-role="sub"></p>
+    </article>
+  </section>
+
+  <section class="card">
+    <h3>Monthly breakdown</h3>
+    <div id="monthsList" class="months"></div>
+  </section>
+
+  <section class="card totals">
+    <h3>Year to date</h3>
+    <div id="yearTotals" class="totals-grid"></div>
+  </section>
+
+  <footer class="muted small">
+    Data lives in <code>data.json</code>. Edit + commit to update.
+  </footer>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

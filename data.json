@@ -1,0 +1,20 @@
+{
+  "year": 2026,
+  "employmentStartMonth": 3,
+  "currentMonth": 4,
+  "limits": { "transport": 200, "benefits": 400 },
+  "spending": {
+    "1":  { "transport": 0, "benefits": 0 },
+    "2":  { "transport": 0, "benefits": 0 },
+    "3":  { "transport": 0, "benefits": 0 },
+    "4":  { "transport": 0, "benefits": 0 },
+    "5":  { "transport": 0, "benefits": 0 },
+    "6":  { "transport": 0, "benefits": 0 },
+    "7":  { "transport": 0, "benefits": 0 },
+    "8":  { "transport": 0, "benefits": 0 },
+    "9":  { "transport": 0, "benefits": 0 },
+    "10": { "transport": 0, "benefits": 0 },
+    "11": { "transport": 0, "benefits": 0 },
+    "12": { "transport": 0, "benefits": 0 }
+  }
+}
