@@ -31,6 +31,7 @@
       <h3>Monthly breakdown</h3>
       <div class="card-actions">
         <button id="addBtn" type="button">Add entry</button>
+        <button id="historyBtn" type="button" class="ghost">History</button>
       </div>
     </div>
     <p class="muted small edit-hint">Click <strong>Add entry</strong> to log a spend. Values save to this browser.</p>
@@ -55,15 +56,20 @@
           <option value="benefits">Benefits</option>
         </select>
       </label>
-      <label class="field checkbox">
-        <input id="addMode" type="checkbox" checked />
-        <span>Add to existing (uncheck to replace)</span>
-      </label>
       <div class="dialog-actions">
         <button id="addCancelBtn" type="button" class="ghost">Cancel</button>
         <button id="addSaveBtn" type="submit">Save</button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="historyDialog">
+    <h3>History</h3>
+    <p class="muted small">Click <strong>Delete</strong> to remove an entry — totals update immediately.</p>
+    <div id="historyList" class="history-list"></div>
+    <div class="dialog-actions">
+      <button id="historyCloseBtn" type="button" class="ghost">Close</button>
+    </div>
   </dialog>
 
   <section class="card totals">

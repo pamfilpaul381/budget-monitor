@@ -4,27 +4,48 @@ const CATS = [
   { key: "benefits",  label: "Benefits" },
 ];
 const STORAGE_KEY = "budgetMonitor.spending.v1";
+const LOG_KEY = "budgetMonitor.log.v1";
 
 const fmt = (n) => `${Math.round(n).toLocaleString("en-US")} lei`;
 
 let DATA = null;
 
+function loadLog() {
+  try { return JSON.parse(localStorage.getItem(LOG_KEY)) || []; }
+  catch { return []; }
+}
+function saveLog(arr) { localStorage.setItem(LOG_KEY, JSON.stringify(arr)); }
+
 function loadOverrides() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
   catch { return {}; }
 }
-function saveOverrides(o) { localStorage.setItem(STORAGE_KEY, JSON.stringify(o)); }
 
 function getSpent(month, cat) {
   const o = loadOverrides();
-  if (o?.[month]?.[cat] != null) return Number(o[month][cat]) || 0;
-  return Number(DATA.spending?.[month]?.[cat]) || 0;
+  const base = o?.[month]?.[cat] != null
+    ? Number(o[month][cat]) || 0
+    : Number(DATA.spending?.[month]?.[cat]) || 0;
+  const logSum = loadLog()
+    .filter(e => e.month === String(month) && e.cat === cat)
+    .reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  return base + logSum;
 }
-function setSpent(month, cat, value) {
-  const o = loadOverrides();
-  o[month] = o[month] || {};
-  o[month][cat] = value;
-  saveOverrides(o);
+
+function addLogEntry(month, cat, amount) {
+  const log = loadLog();
+  log.push({
+    id: (crypto.randomUUID && crypto.randomUUID()) || `${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
+    ts: Date.now(),
+    month: String(month),
+    cat,
+    amount: Number(amount) || 0,
+  });
+  saveLog(log);
+}
+
+function deleteLogEntry(id) {
+  saveLog(loadLog().filter(e => e.id !== id));
 }
 
 function statusClass(spent, cap) {
@@ -177,9 +198,34 @@ function applyAll() {
   refreshYearTotals(ACTIVE_MONTHS);
 }
 
+function migrateOverridesToLog() {
+  const o = loadOverrides();
+  if (!o || Object.keys(o).length === 0) return;
+  if (loadLog().length > 0) return;
+  const log = [];
+  for (const [month, cats] of Object.entries(o)) {
+    for (const [cat, val] of Object.entries(cats || {})) {
+      const base = Number(DATA.spending?.[month]?.[cat]) || 0;
+      const delta = (Number(val) || 0) - base;
+      if (delta > 0) {
+        log.push({
+          id: `migrated-${month}-${cat}`,
+          ts: Date.now(),
+          month: String(month),
+          cat,
+          amount: delta,
+        });
+      }
+    }
+  }
+  saveLog(log);
+  localStorage.removeItem(STORAGE_KEY);
+}
+
 async function init() {
   const res = await fetch("./data.json", { cache: "no-store" });
   DATA = await res.json();
+  migrateOverridesToLog();
 
   document.getElementById("yearLabel").textContent = `${DATA.year}`;
 
@@ -200,8 +246,9 @@ async function init() {
   const addMonthSel = document.getElementById("addMonth");
   const addCatSel = document.getElementById("addCategory");
   const addAmount = document.getElementById("addAmount");
-  const addMode = document.getElementById("addMode");
   const addForm = document.getElementById("addForm");
+  const historyDialog = document.getElementById("historyDialog");
+  const historyList = document.getElementById("historyList");
 
   addMonthSel.innerHTML = "";
   for (const m of ACTIVE_MONTHS) {
@@ -215,7 +262,6 @@ async function init() {
 
   document.getElementById("addBtn").addEventListener("click", () => {
     addAmount.value = "";
-    addMode.checked = true;
     addDialog.showModal();
     setTimeout(() => addAmount.focus(), 0);
   });
@@ -225,13 +271,52 @@ async function init() {
   addForm.addEventListener("submit", (e) => {
     e.preventDefault();
     const amt = Math.max(0, Number(addAmount.value) || 0);
-    const month = addMonthSel.value;
-    const cat = addCatSel.value;
-    const current = getSpent(month, cat);
-    const next = addMode.checked ? current + amt : amt;
-    setSpent(month, cat, next);
+    if (amt <= 0) { addDialog.close(); return; }
+    addLogEntry(addMonthSel.value, addCatSel.value, amt);
     applyAll();
     addDialog.close();
+  });
+
+  function renderHistory() {
+    const entries = loadLog().slice().sort((a, b) => b.ts - a.ts);
+    historyList.innerHTML = "";
+    if (entries.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "muted small";
+      empty.textContent = "No entries yet.";
+      historyList.appendChild(empty);
+      return;
+    }
+    const catLabel = { transport: "Transport", benefits: "Benefits" };
+    for (const e of entries) {
+      const row = document.createElement("div");
+      row.className = "history-row";
+      const when = new Date(e.ts);
+      const whenStr = when.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+      const meta = document.createElement("div");
+      meta.className = "history-meta";
+      meta.innerHTML = `<div class="history-main">${MONTH_NAMES[Number(e.month) - 1]} · ${catLabel[e.cat] || e.cat} · <strong>${fmt(e.amount)}</strong></div><div class="history-sub muted small">${whenStr}</div>`;
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "ghost";
+      del.textContent = "Delete";
+      del.addEventListener("click", () => {
+        deleteLogEntry(e.id);
+        applyAll();
+        renderHistory();
+      });
+      row.appendChild(meta);
+      row.appendChild(del);
+      historyList.appendChild(row);
+    }
+  }
+
+  document.getElementById("historyBtn").addEventListener("click", () => {
+    renderHistory();
+    historyDialog.showModal();
+  });
+  document.getElementById("historyCloseBtn").addEventListener("click", () => {
+    historyDialog.close();
   });
 
   applyAll();

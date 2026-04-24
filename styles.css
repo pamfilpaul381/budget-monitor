@@ -211,6 +211,21 @@ dialog textarea {
 .field.checkbox { flex-direction: row; align-items: center; gap: 8px; text-transform: none; letter-spacing: 0; font-size: 13px; }
 .field.checkbox input { width: auto; }
 
+.history-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; max-height: 50vh; overflow-y: auto; }
+.history-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.history-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.history-main { font-size: 13px; }
+.history-sub { margin: 0; }
+
 .totals-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
