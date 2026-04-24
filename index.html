@@ -27,9 +27,26 @@
   </section>
 
   <section class="card">
-    <h3>Monthly breakdown</h3>
+    <div class="card-head">
+      <h3>Monthly breakdown</h3>
+      <div class="card-actions">
+        <button id="exportBtn" type="button">Export data.json</button>
+        <button id="resetBtn" type="button" class="ghost">Reset local edits</button>
+      </div>
+    </div>
+    <p class="muted small edit-hint">Edit any number below — changes save to this browser. Use <strong>Export</strong> to copy updated JSON into the repo.</p>
     <div id="monthsList" class="months"></div>
   </section>
+
+  <dialog id="exportDialog">
+    <h3>Updated data.json</h3>
+    <p class="muted small">Copy this, paste it into <code>data.json</code> in the repo, commit &amp; push.</p>
+    <textarea id="exportText" readonly rows="20"></textarea>
+    <div class="dialog-actions">
+      <button id="copyBtn" type="button">Copy</button>
+      <button id="closeBtn" type="button" class="ghost">Close</button>
+    </div>
+  </dialog>
 
   <section class="card totals">
     <h3>Year to date</h3>

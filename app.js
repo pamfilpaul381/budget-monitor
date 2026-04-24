@@ -3,8 +3,29 @@ const CATS = [
   { key: "transport", label: "Transport" },
   { key: "benefits",  label: "Benefits" },
 ];
+const STORAGE_KEY = "budgetMonitor.spending.v1";
 
 const fmt = (n) => `${Math.round(n).toLocaleString("en-US")} lei`;
+
+let DATA = null;
+
+function loadOverrides() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+  catch { return {}; }
+}
+function saveOverrides(o) { localStorage.setItem(STORAGE_KEY, JSON.stringify(o)); }
+
+function getSpent(month, cat) {
+  const o = loadOverrides();
+  if (o?.[month]?.[cat] != null) return Number(o[month][cat]) || 0;
+  return Number(DATA.spending?.[month]?.[cat]) || 0;
+}
+function setSpent(month, cat, value) {
+  const o = loadOverrides();
+  o[month] = o[month] || {};
+  o[month][cat] = value;
+  saveOverrides(o);
+}
 
 function statusClass(spent, cap) {
   if (spent > cap) return "bad";
@@ -12,28 +33,35 @@ function statusClass(spent, cap) {
   return "ok";
 }
 
-function renderBar(spent, cap) {
+function buildBar() {
   const wrap = document.createElement("div");
   wrap.className = "bar-track";
-
   const fill = document.createElement("div");
   fill.className = "bar-fill";
-  const pct = cap > 0 ? Math.min(spent, cap) / cap : 0;
-  fill.style.width = `${pct * 100}%`;
-  fill.classList.add(statusClass(spent, cap));
   wrap.appendChild(fill);
-
-  if (spent > cap && cap > 0) {
-    const over = document.createElement("div");
-    over.className = "bar-overflow";
-    const overPct = Math.min((spent - cap) / cap, 1);
-    over.style.width = `${overPct * 100}%`;
-    wrap.appendChild(over);
-  }
+  const over = document.createElement("div");
+  over.className = "bar-overflow";
+  over.style.display = "none";
+  wrap.appendChild(over);
   return wrap;
 }
 
-function renderMonth(monthIdx, spending, limits, active) {
+function updateBar(wrap, spent, cap) {
+  const fill = wrap.querySelector(".bar-fill");
+  const over = wrap.querySelector(".bar-overflow");
+  const pct = cap > 0 ? Math.min(spent, cap) / cap : 0;
+  fill.style.width = `${pct * 100}%`;
+  fill.classList.remove("ok", "warn", "bad");
+  fill.classList.add(statusClass(spent, cap));
+  if (spent > cap && cap > 0) {
+    over.style.display = "";
+    over.style.width = `${Math.min((spent - cap) / cap, 1) * 100}%`;
+  } else {
+    over.style.display = "none";
+  }
+}
+
+function renderMonth(monthIdx, active) {
   const row = document.createElement("div");
   row.className = "month-row" + (active ? "" : " inactive");
 
@@ -44,13 +72,13 @@ function renderMonth(monthIdx, spending, limits, active) {
 
   const bars = document.createElement("div");
   bars.className = "bars";
-  let total = 0;
 
+  const totalEl = document.createElement("div");
+  totalEl.className = "month-total";
+
+  const refs = [];
   for (const c of CATS) {
-    const spent = spending?.[c.key] ?? 0;
-    const cap = limits[c.key];
-    total += spent;
-
+    const cap = DATA.limits[c.key];
     const br = document.createElement("div");
     br.className = "bar-row";
 
@@ -59,52 +87,81 @@ function renderMonth(monthIdx, spending, limits, active) {
     lbl.textContent = c.label;
     br.appendChild(lbl);
 
-    br.appendChild(renderBar(spent, cap));
+    const bar = buildBar();
+    br.appendChild(bar);
 
     const val = document.createElement("div");
-    val.className = "bar-value" + (spent > cap ? " over" : "");
-    val.textContent = `${fmt(spent)} / ${fmt(cap)}`;
+    val.className = "bar-value";
+
+    const input = document.createElement("input");
+    input.type = "number";
+    input.min = "0";
+    input.step = "1";
+    input.className = "bar-input";
+    input.value = getSpent(String(monthIdx), c.key);
+    input.disabled = !active;
+    input.addEventListener("input", () => {
+      const v = Math.max(0, Number(input.value) || 0);
+      setSpent(String(monthIdx), c.key, v);
+      applyAll();
+    });
+
+    const cap_ = document.createElement("span");
+    cap_.className = "bar-cap";
+    cap_.textContent = `/ ${fmt(cap)}`;
+
+    val.appendChild(input);
+    val.appendChild(cap_);
     br.appendChild(val);
 
     bars.appendChild(br);
+    refs.push({ cat: c.key, cap, bar, input, val });
   }
   row.appendChild(bars);
-
-  const totalEl = document.createElement("div");
-  totalEl.className = "month-total";
-  totalEl.textContent = fmt(total);
   row.appendChild(totalEl);
 
+  row._refs = refs;
+  row._totalEl = totalEl;
+  row._month = String(monthIdx);
   return row;
 }
 
-function renderStatusCard(catKey, catLabel, monthSpent, cap) {
+function refreshMonth(row) {
+  let total = 0;
+  for (const r of row._refs) {
+    const spent = getSpent(row._month, r.cat);
+    updateBar(r.bar, spent, r.cap);
+    r.val.classList.toggle("over", spent > r.cap);
+    r.input.classList.toggle("over", spent > r.cap);
+    if (document.activeElement !== r.input) r.input.value = spent;
+    total += spent;
+  }
+  row._totalEl.textContent = fmt(total);
+}
+
+function renderStatusCard(catLabel, monthSpent, cap) {
   const card = document.getElementById(`status${catLabel}`);
   const line = card.querySelector('[data-role="line"]');
   const sub = card.querySelector('[data-role="sub"]');
   const cls = statusClass(monthSpent, cap);
   line.classList.remove("ok", "warn", "bad");
   line.classList.add(cls);
-
   if (monthSpent > cap) {
     line.textContent = `Exceeded by ${fmt(monthSpent - cap)}`;
-    sub.textContent = `This month: ${fmt(monthSpent)} spent of ${fmt(cap)} cap`;
   } else {
-    const left = cap - monthSpent;
-    line.textContent = `Up to date — ${fmt(left)} left`;
-    sub.textContent = `This month: ${fmt(monthSpent)} spent of ${fmt(cap)} cap`;
+    line.textContent = `Up to date — ${fmt(cap - monthSpent)} left`;
   }
+  sub.textContent = `This month: ${fmt(monthSpent)} spent of ${fmt(cap)} cap`;
 }
 
-function renderYearTotals(data, activeMonths) {
+function refreshYearTotals(activeMonths) {
   const target = document.getElementById("yearTotals");
   target.innerHTML = "";
   const totals = { transport: 0, benefits: 0 };
   for (const m of activeMonths) {
-    for (const c of CATS) totals[c.key] += data.spending?.[m]?.[c.key] ?? 0;
+    for (const c of CATS) totals[c.key] += getSpent(m, c.key);
   }
   const grand = totals.transport + totals.benefits;
-
   const items = [
     { label: "Transport YTD", value: fmt(totals.transport) },
     { label: "Benefits YTD",  value: fmt(totals.benefits) },
@@ -118,30 +175,76 @@ function renderYearTotals(data, activeMonths) {
   }
 }
 
+let ROWS = [];
+let ACTIVE_MONTHS = [];
+
+function applyAll() {
+  for (const row of ROWS) refreshMonth(row);
+  const cur = String(DATA.currentMonth ?? (new Date().getMonth() + 1));
+  renderStatusCard("Transport", getSpent(cur, "transport"), DATA.limits.transport);
+  renderStatusCard("Benefits",  getSpent(cur, "benefits"),  DATA.limits.benefits);
+  refreshYearTotals(ACTIVE_MONTHS);
+}
+
+function buildExportJson() {
+  const out = {
+    year: DATA.year,
+    employmentStartMonth: DATA.employmentStartMonth,
+    currentMonth: DATA.currentMonth,
+    limits: DATA.limits,
+    spending: {},
+  };
+  for (let m = 1; m <= 12; m++) {
+    out.spending[m] = {
+      transport: getSpent(String(m), "transport"),
+      benefits:  getSpent(String(m), "benefits"),
+    };
+  }
+  return JSON.stringify(out, null, 2);
+}
+
 async function init() {
   const res = await fetch("./data.json", { cache: "no-store" });
-  const data = await res.json();
+  DATA = await res.json();
 
-  document.getElementById("yearLabel").textContent = `${data.year}`;
+  document.getElementById("yearLabel").textContent = `${DATA.year}`;
 
-  const startMonth = data.employmentStartMonth ?? 1;
-  const currentMonth = data.currentMonth ?? (new Date().getMonth() + 1);
-
+  const startMonth = DATA.employmentStartMonth ?? 1;
   const list = document.getElementById("monthsList");
   list.innerHTML = "";
-  const activeMonths = [];
+  ROWS = [];
+  ACTIVE_MONTHS = [];
   for (let m = 1; m <= 12; m++) {
     const active = m >= startMonth && m <= 12;
-    if (active) activeMonths.push(String(m));
-    list.appendChild(renderMonth(m, data.spending?.[m], data.limits, active));
+    if (active) ACTIVE_MONTHS.push(String(m));
+    const row = renderMonth(m, active);
+    list.appendChild(row);
+    ROWS.push(row);
   }
 
-  const curKey = String(currentMonth);
-  const monthData = data.spending?.[curKey] ?? { transport: 0, benefits: 0 };
-  renderStatusCard("transport", "Transport", monthData.transport ?? 0, data.limits.transport);
-  renderStatusCard("benefits",  "Benefits",  monthData.benefits  ?? 0, data.limits.benefits);
+  document.getElementById("exportBtn").addEventListener("click", () => {
+    const text = buildExportJson();
+    document.getElementById("exportText").value = text;
+    document.getElementById("exportDialog").showModal();
+  });
+  document.getElementById("closeBtn").addEventListener("click", () => {
+    document.getElementById("exportDialog").close();
+  });
+  document.getElementById("copyBtn").addEventListener("click", async () => {
+    const ta = document.getElementById("exportText");
+    try { await navigator.clipboard.writeText(ta.value); }
+    catch { ta.select(); document.execCommand("copy"); }
+  });
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    if (!confirm("Discard local edits and reload values from data.json?")) return;
+    localStorage.removeItem(STORAGE_KEY);
+    for (const row of ROWS) {
+      for (const r of row._refs) r.input.value = getSpent(row._month, r.cat);
+    }
+    applyAll();
+  });
 
-  renderYearTotals(data, activeMonths);
+  applyAll();
 }
 
 init().catch((e) => {
