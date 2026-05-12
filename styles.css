@@ -94,6 +94,21 @@ main {
   background: var(--panel-2);
 }
 .month-row.inactive { opacity: 0.35; }
+.month-row.clickable { cursor: pointer; transition: border-color 150ms ease; }
+.month-row.clickable:hover { border-color: var(--ok); }
+
+.month-edit-row { display: flex; align-items: center; gap: 8px; }
+.month-edit-row .bar-input { width: 80px; text-align: right; }
+.month-edit-cat {
+  background: #0b0c10;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 12px;
+}
+.month-edit-cat:focus { outline: none; border-color: var(--ok); }
 .month-label { font-weight: 600; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
 .month-total { text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); }
 

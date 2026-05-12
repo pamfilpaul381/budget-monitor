@@ -48,6 +48,17 @@ function deleteLogEntry(id) {
   saveLog(loadLog().filter(e => e.id !== id));
 }
 
+function updateLogEntry(id, patch) {
+  const log = loadLog().map(e => {
+    if (e.id !== id) return e;
+    const next = { ...e };
+    if (patch.amount != null) next.amount = Number(patch.amount) || 0;
+    if (patch.cat != null) next.cat = patch.cat;
+    return next;
+  });
+  saveLog(log);
+}
+
 function statusClass(spent, cap) {
   if (spent > cap) return "bad";
   if (cap > 0 && spent / cap >= 0.8) return "warn";
@@ -84,7 +95,10 @@ function updateBar(wrap, spent, cap) {
 
 function renderMonth(monthIdx, active) {
   const row = document.createElement("div");
-  row.className = "month-row" + (active ? "" : " inactive");
+  row.className = "month-row" + (active ? " clickable" : " inactive");
+  if (active) {
+    row.addEventListener("click", () => openMonthDialog(String(monthIdx)));
+  }
 
   const label = document.createElement("div");
   label.className = "month-label";
@@ -189,6 +203,75 @@ function refreshYearTotals(activeMonths) {
 
 let ROWS = [];
 let ACTIVE_MONTHS = [];
+
+function openMonthDialog(monthStr) {
+  const dialog = document.getElementById("monthDialog");
+  const title = document.getElementById("monthDialogTitle");
+  title.textContent = `${MONTH_NAMES[Number(monthStr) - 1]} entries`;
+  renderMonthList(monthStr);
+  dialog.showModal();
+}
+
+function renderMonthList(monthStr) {
+  const list = document.getElementById("monthList");
+  list.innerHTML = "";
+  const entries = loadLog()
+    .filter(e => e.month === monthStr)
+    .sort((a, b) => b.ts - a.ts);
+  if (entries.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "muted small";
+    empty.textContent = "No entries for this month yet.";
+    list.appendChild(empty);
+    return;
+  }
+  for (const e of entries) {
+    const row = document.createElement("div");
+    row.className = "history-row month-edit-row";
+
+    const amt = document.createElement("input");
+    amt.type = "number";
+    amt.min = "0";
+    amt.step = "1";
+    amt.className = "bar-input";
+    amt.value = e.amount;
+
+    const sel = document.createElement("select");
+    sel.className = "month-edit-cat";
+    for (const c of CATS) {
+      const opt = document.createElement("option");
+      opt.value = c.key;
+      opt.textContent = c.label;
+      if (c.key === e.cat) opt.selected = true;
+      sel.appendChild(opt);
+    }
+
+    const save = document.createElement("button");
+    save.type = "button";
+    save.textContent = "Save";
+    save.addEventListener("click", () => {
+      updateLogEntry(e.id, { amount: amt.value, cat: sel.value });
+      applyAll();
+      renderMonthList(monthStr);
+    });
+
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "ghost";
+    del.textContent = "Delete";
+    del.addEventListener("click", () => {
+      deleteLogEntry(e.id);
+      applyAll();
+      renderMonthList(monthStr);
+    });
+
+    row.appendChild(amt);
+    row.appendChild(sel);
+    row.appendChild(save);
+    row.appendChild(del);
+    list.appendChild(row);
+  }
+}
 
 function applyAll() {
   for (const row of ROWS) refreshMonth(row);
@@ -317,6 +400,10 @@ async function init() {
   });
   document.getElementById("historyCloseBtn").addEventListener("click", () => {
     historyDialog.close();
+  });
+
+  document.getElementById("monthCloseBtn").addEventListener("click", () => {
+    document.getElementById("monthDialog").close();
   });
 
   applyAll();

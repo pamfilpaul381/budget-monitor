@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Budget Monitor</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -34,7 +35,7 @@
         <button id="historyBtn" type="button" class="ghost">History</button>
       </div>
     </div>
-    <p class="muted small edit-hint">Click <strong>Add entry</strong> to log a spend. Values save to this browser.</p>
+    <p class="muted small edit-hint">Click <strong>Add entry</strong> to log a spend, or click any month row to edit its entries. Values save to this browser.</p>
     <div id="monthsList" class="months"></div>
   </section>
 
@@ -61,6 +62,15 @@
         <button id="addSaveBtn" type="submit">Save</button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="monthDialog">
+    <h3 id="monthDialogTitle">Month entries</h3>
+    <p class="muted small">Edit an entry's amount or category, then click <strong>Save</strong>.</p>
+    <div id="monthList" class="history-list"></div>
+    <div class="dialog-actions">
+      <button id="monthCloseBtn" type="button" class="ghost">Close</button>
+    </div>
   </dialog>
 
   <dialog id="historyDialog">
