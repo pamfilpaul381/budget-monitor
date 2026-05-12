@@ -187,11 +187,23 @@ function refreshYearTotals(activeMonths) {
   for (const m of activeMonths) {
     for (const c of CATS) totals[c.key] += getSpent(m, c.key);
   }
-  const grand = totals.transport + totals.benefits;
+  // Months elapsed (including current month) since employment started.
+  const startMonth = DATA.employmentStartMonth ?? 1;
+  const curMonth = Number(DATA.currentMonth ?? (new Date().getMonth() + 1));
+  const monthsElapsed = Math.max(0, Math.min(12, curMonth) - startMonth + 1);
+  const caps = {
+    transport: monthsElapsed * (DATA.limits.transport || 0),
+    benefits:  monthsElapsed * (DATA.limits.benefits  || 0),
+  };
+  const available = {
+    transport: caps.transport - totals.transport,
+    benefits:  caps.benefits  - totals.benefits,
+  };
+  const grand = available.transport + available.benefits;
   const items = [
-    { label: "Transport YTD", value: fmt(totals.transport) },
-    { label: "Benefits YTD",  value: fmt(totals.benefits) },
-    { label: "Total YTD",     value: fmt(grand) },
+    { label: "Transport available", value: fmt(available.transport) },
+    { label: "Benefits available",  value: fmt(available.benefits) },
+    { label: "Total available", value: fmt(grand) },
   ];
   for (const it of items) {
     const el = document.createElement("div");
